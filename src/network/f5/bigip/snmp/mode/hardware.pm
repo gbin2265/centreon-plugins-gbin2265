@@ -1,5 +1,5 @@
 #
-# Copyright 2024 Centreon (http://www.centreon.com/)
+# Copyright 2026 Centreon (http://www.centreon.com/)
 #
 # Centreon is a full-fledged industry-strength solution that meets
 # the needs in IT infrastructure and application monitoring for
@@ -42,11 +42,16 @@ sub set_system {
             ['bad', 'CRITICAL'],
             ['good', 'OK'],
             ['notPresent', 'OK']
+        ],
+        disk => [
+            ['failed', 'CRITICAL'],
+            ['ok', 'OK'],
+            ['undefined', 'OK']
         ]
     };
     
     $self->{components_path} = 'network::f5::bigip::snmp::mode::components';
-    $self->{components_module} = ['fan', 'psu', 'temperature'];
+    $self->{components_module} = ['fan', 'psu', 'temperature', 'disk'];
 }
 
 sub snmp_execute {
@@ -72,14 +77,14 @@ __END__
 
 =head1 MODE
 
-Check hardware (fans, temperatures, power supplies).
+Check hardware (fans, temperatures, power supplies, disks).
 
 =over 8
 
 =item B<--component>
 
 Which component to check (default: '.*').
-Can be: 'fan', 'psu', 'temperature'.
+Can be: 'fan', 'psu', 'temperature', 'disk'.
 
 =item B<--filter>
 
@@ -121,4 +126,3 @@ Define the critical threshold for the number of components of one type (replace 
 =back
 
 =cut
- 

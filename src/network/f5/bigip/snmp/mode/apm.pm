@@ -1,5 +1,5 @@
 #
-# Copyright 2024 Centreon (http://www.centreon.com/)
+# Copyright 2026 Centreon (http://www.centreon.com/)
 #
 # Centreon is a full-fledged industry-strength solution that meets
 # the needs in IT infrastructure and application monitoring for
@@ -80,6 +80,31 @@ sub set_counters {
                     { template => '%s', min => 0 }
                 ]
             }
+        },
+        # New: CCU (Concurrent Connected Users) connectivity sessions
+        { label => 'connectivity-current', nlabel => 'system.connectivity.sessions.current.count', set => {
+                key_values => [ { name => 'apmGlobalConnectivityStatCurConns' } ],
+                output_template => 'current connectivity sessions (CCU): %s',
+                perfdatas => [
+                    { template => '%s', min => 0 }
+                ]
+            }
+        },
+        { label => 'connectivity-total', nlabel => 'system.connectivity.sessions.total.count', set => {
+                key_values => [ { name => 'apmGlobalConnectivityStatTotConns', diff => 1 } ],
+                output_template => 'total connectivity sessions: %s',
+                perfdatas => [
+                    { template => '%s', min => 0 }
+                ]
+            }
+        },
+        { label => 'connectivity-max', nlabel => 'system.connectivity.sessions.max.count', display_ok => 0, set => {
+                key_values => [ { name => 'apmGlobalConnectivityStatMaxConns' } ],
+                output_template => 'max connectivity sessions: %s',
+                perfdatas => [
+                    { template => '%s', min => 0 }
+                ]
+            }
         }
     ];
 
@@ -137,19 +162,35 @@ sub manage_selection {
         apmAccessStatCurrentActiveSessions  => { oid => '.1.3.6.1.4.1.3375.2.6.1.4.3' },
         apmAccessStatCurrentPendingSessions => { oid => '.1.3.6.1.4.1.3375.2.6.1.4.4' },
     };
+    # New: CCU connectivity statistics from F5-BIGIP-APM-MIB
+    my $mapping3 = {
+        apmGlobalConnectivityStatTotConns => { oid => '.1.3.6.1.4.1.3375.2.6.1.5.2' },
+        apmGlobalConnectivityStatCurConns => { oid => '.1.3.6.1.4.1.3375.2.6.1.5.3' },
+        apmGlobalConnectivityStatMaxConns => { oid => '.1.3.6.1.4.1.3375.2.6.1.5.4' },
+    };
 
     my $oid_apmPaStatEntry = '.1.3.6.1.4.1.3375.2.6.1.1.3.1';
     my $oid_apmAccessStat = '.1.3.6.1.4.1.3375.2.6.1.4';
+    my $oid_apmGlobalConnectivityStat = '.1.3.6.1.4.1.3375.2.6.1.5';
     my $snmp_result = $options{snmp}->get_multiple_table(
         oids => [
             { oid => $oid_apmPaStatEntry, start => $mapping->{apmPaStatTotalSessions}->{oid}, end => $mapping->{apmPaStatCurrentPendingSessions}->{oid} },
             { oid => $oid_apmAccessStat },
+            { oid => $oid_apmGlobalConnectivityStat },
         ],
         nothing_quit => 1,
     );
 
     my $result = $options{snmp}->map_instance(mapping => $mapping2, results => $snmp_result->{$oid_apmAccessStat}, instance => '0');
     $self->{global} = { %$result };
+
+    # Add connectivity stats if available
+    my $result_ccu = $options{snmp}->map_instance(mapping => $mapping3, results => $snmp_result->{$oid_apmGlobalConnectivityStat}, instance => '0');
+    if (defined($result_ccu->{apmGlobalConnectivityStatCurConns})) {
+        $self->{global}->{apmGlobalConnectivityStatCurConns} = $result_ccu->{apmGlobalConnectivityStatCurConns};
+        $self->{global}->{apmGlobalConnectivityStatTotConns} = $result_ccu->{apmGlobalConnectivityStatTotConns};
+        $self->{global}->{apmGlobalConnectivityStatMaxConns} = $result_ccu->{apmGlobalConnectivityStatMaxConns};
+    }
 
     $self->{vs} = {};
     foreach my $oid (keys %{$snmp_result->{$oid_apmPaStatEntry}}) {
@@ -204,6 +245,10 @@ __END__
 
 Check access policy manager.
 
+Monitors APM access sessions and connectivity (CCU) sessions.
+The CCU counters report Network Access / VPN tunnel concurrent connections
+from the F5-BIGIP-APM-MIB apmGlobalConnectivityStat branch.
+
 =over 8
 
 =item B<--filter-vs>
@@ -237,6 +282,30 @@ Thresholds.
 =item B<--critical-sessions-pending>
 
 Thresholds.
+
+=item B<--warning-connectivity-current>
+
+Warning threshold for current CCU connectivity sessions.
+
+=item B<--critical-connectivity-current>
+
+Critical threshold for current CCU connectivity sessions.
+
+=item B<--warning-connectivity-total>
+
+Warning threshold for total connectivity sessions (delta).
+
+=item B<--critical-connectivity-total>
+
+Critical threshold for total connectivity sessions (delta).
+
+=item B<--warning-connectivity-max>
+
+Warning threshold for max concurrent connectivity sessions.
+
+=item B<--critical-connectivity-max>
+
+Critical threshold for max concurrent connectivity sessions.
 
 =item B<--warning-ap-sessions-created>
 

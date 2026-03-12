@@ -1,5 +1,5 @@
 #
-# Copyright 2024 Centreon (http://www.centreon.com/)
+# Copyright 2026-Present Centreon (http://www.centreon.com/)
 #
 # Centreon is a full-fledged industry-strength solution that meets
 # the needs in IT infrastructure and application monitoring for
@@ -23,80 +23,122 @@ package centreon::common::redfish::restapi::mode::components::fan;
 use strict;
 use warnings;
 
-my $reading_units = {
-    percent => { short => '%', long => 'percentage' },
-    rpm => { short => 'rpm', long => 'rpm' }
-};
-
 sub check {
     my ($self) = @_;
 
     $self->{output}->output_add(long_msg => 'checking fans');
-    $self->{components}->{fan} = { name => 'fans', total => 0, skip => 0 };
+    $self->{components}->{fan} = { name => 'fan', total => 0, skip => 0 };
     return if ($self->check_filter(section => 'fan'));
 
     $self->get_chassis() if (!defined($self->{chassis}));
+    return if (!defined($self->{chassis}));
 
     foreach my $chassis (@{$self->{chassis}}) {
-        my $chassis_name = 'chassis:' . $chassis->{Id};
-
         $chassis->{Thermal}->{result} = $self->get_thermal(chassis => $chassis) if (!defined($chassis->{Thermal}->{result}));
         next if (!defined($chassis->{Thermal}->{result}->{Fans}));
 
         foreach my $fan (@{$chassis->{Thermal}->{result}->{Fans}}) {
-            my $fan_name = $fan->{Name};
-            my $instance = $chassis->{Id} . '.' . $fan->{MemberId};
-
-            $fan->{Status}->{Health} = defined($fan->{Status}->{Health}) ? $fan->{Status}->{Health} : 'n/a';
+            my $instance = defined($fan->{MemberId}) ? $fan->{MemberId} : 
+                          defined($fan->{Id}) ? $fan->{Id} : 'unknown';
+            my $name = defined($fan->{Name}) ? $fan->{Name} : 'Fan' . $instance;
+            
+            my $state = defined($fan->{Status}->{State}) ? $fan->{Status}->{State} : 'n/a';
+            my $health = defined($fan->{Status}->{Health}) ? $fan->{Status}->{Health} : 'n/a';
+            
             next if ($self->check_filter(section => 'fan', instance => $instance));
             $self->{components}->{fan}->{total}++;
-            
+
+            my $reading = defined($fan->{Reading}) ? $fan->{Reading} : '';
+            my $reading_units = defined($fan->{ReadingUnits}) ? $fan->{ReadingUnits} : 'Percent';
+
             $self->{output}->output_add(
                 long_msg => sprintf(
-                    "fan '%s/%s' status is '%s' [instance: %s, state: %s, speed: %s %s]",
-                    $chassis_name, $fan_name, $fan->{Status}->{Health}, $instance, $fan->{Status}->{State},
-                    $fan->{Reading}, $fan->{ReadingUnits}
+                    "fan '%s' status is '%s' [instance: %s, state: %s, reading: %s %s]",
+                    $name, $health, $instance, $state, $reading, $reading_units
                 )
             );
-
-            my $exit = $self->get_severity(label => 'state', section => 'fan.state', value => $fan->{Status}->{State});
+            
+            my $exit = $self->get_severity(label => 'state', section => 'fan.state', value => $state);
             if (!$self->{output}->is_status(value => $exit, compare => 'ok', litteral => 1)) {
                 $self->{output}->output_add(
                     severity => $exit,
-                    short_msg => sprintf("Fan '%s/%s' state is '%s'", $chassis_name, $fan_name, $fan->{Status}->{State})
+                    short_msg => sprintf("Fan '%s' state is '%s'", $name, $state)
                 );
             }
-
-            $exit = $self->get_severity(label => 'status', section => 'fan.status', value => $fan->{Status}->{Health});
+            
+            $exit = $self->get_severity(label => 'status', section => 'fan.status', value => $health);
             if (!$self->{output}->is_status(value => $exit, compare => 'ok', litteral => 1)) {
                 $self->{output}->output_add(
                     severity => $exit,
-                    short_msg => sprintf("Fan '%s/%s' status is '%s'", $chassis_name, $fan_name, $fan->{Status}->{Health})
+                    short_msg => sprintf("Fan '%s' status is '%s'", $name, $health)
                 );
             }
-
-            my ($exit2, $warn, $crit, $checked) = $self->get_severity_numeric(section => 'fan', instance => $instance, value => $fan->{Reading});
-            if (!$self->{output}->is_status(value => $exit2, compare => 'ok', litteral => 1)) {
-                $self->{output}->output_add(
-                    severity => $exit2,
-                    short_msg => sprintf(
-                        "Fan '%s/%s' speed is %s %s",
-                        $chassis_name, $fan_name, $fan->{Reading}, $reading_units->{lc($fan->{ReadingUnits})}->{short}
-                    )
+            
+            # Fan speed perfdata
+            if (defined($fan->{Reading}) && $fan->{Reading} =~ /\d/) {
+                my $unit = '';
+                my $nlabel = '';
+                my $max = undef;
+                
+                if ($reading_units =~ /percent/i) {
+                    $unit = '%';
+                    $nlabel = 'hardware.fan.speed.percentage';
+                    $max = 100;
+                } elsif ($reading_units =~ /rpm/i) {
+                    $unit = 'rpm';
+                    $nlabel = 'hardware.fan.speed.rpm';
+                } else {
+                    # Default to percentage
+                    $unit = '%';
+                    $nlabel = 'hardware.fan.speed.percentage';
+                    $max = 100;
+                }
+                
+                my ($exit2, $warn, $crit, $checked) = $self->get_severity_numeric(
+                    section => 'fan',
+                    instance => $instance,
+                    value => $fan->{Reading}
+                );
+                if (!$self->{output}->is_status(value => $exit2, compare => 'ok', litteral => 1)) {
+                    $self->{output}->output_add(
+                        severity => $exit2,
+                        short_msg => sprintf("Fan '%s' speed is %s %s", $name, $fan->{Reading}, $unit)
+                    );
+                }
+                
+                $self->{output}->perfdata_add(
+                    nlabel => $nlabel,
+                    unit => $unit,
+                    instances => $instance,
+                    value => $fan->{Reading},
+                    warning => $warn,
+                    critical => $crit,
+                    min => 0,
+                    max => $max
                 );
             }
-            $self->{output}->perfdata_add(
-                unit => $reading_units->{lc($fan->{ReadingUnits})}->{short},
-                nlabel => 'hardware.fan.speed.' . $reading_units->{lc($fan->{ReadingUnits})}->{long},
-                instances => [$chassis_name, $fan_name],
-                value => $fan->{Reading},
-                warning => $warn,
-                critical => $crit,
-                min => 0,
-                max => $fan->{ReadingUnits} eq 'Percent' ? 100 : undef
-            );
         }
     }
 }
 
+
 1;
+
+__END__
+
+=head1 DESCRIPTION
+
+Check fan status, health and speed.
+Monitors fan state, health and reading from the Thermal endpoint.
+Supports both RPM and percentage-based fan speed readings.
+
+=head2 Redfish Endpoint
+
+/redfish/v1/Chassis/{ChassisId}/Thermal (Fans array)
+
+=head2 Perfdata
+
+hardware.fan.speed.percentage : Fan speed in percent (when ReadingUnits is Percent)
+hardware.fan.speed.rpm : Fan speed in RPM (when ReadingUnits is RPM)
+
+=cut

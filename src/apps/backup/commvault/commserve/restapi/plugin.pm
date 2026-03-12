@@ -1,5 +1,5 @@
 #
-# Copyright 2024 Centreon (http://www.centreon.com/)
+# Copyright 2026 Centreon (http://www.centreon.com/)
 #
 # Centreon is a full-fledged industry-strength solution that meets
 # the needs in IT infrastructure and application monitoring for
@@ -26,18 +26,28 @@ use base qw(centreon::plugins::script_custom);
 
 sub new {
     my ($class, %options) = @_;
-
     my $self = $class->SUPER::new(package => __PACKAGE__, %options);
     bless $self, $class;
 
     $self->{version} = '1.0';
     $self->{modes} = {
+        'agent-status'          => 'apps::backup::commvault::commserve::restapi::mode::agentstatus',
         'alerts'                => 'apps::backup::commvault::commserve::restapi::mode::alerts',
+        'clients'               => 'apps::backup::commvault::commserve::restapi::mode::clients',
+        'clients-job-status'    => 'apps::backup::commvault::commserve::restapi::mode::clientsjobstatus',
+        'commcell-info'         => 'apps::backup::commvault::commserve::restapi::mode::commcellinfo',
+        'events'                => 'apps::backup::commvault::commserve::restapi::mode::events',
         'jobs'                  => 'apps::backup::commvault::commserve::restapi::mode::jobs',
+        'library-usage'         => 'apps::backup::commvault::commserve::restapi::mode::libraryusage',
+        'list-clients'          => 'apps::backup::commvault::commserve::restapi::mode::listclients',
         'list-media-agents'     => 'apps::backup::commvault::commserve::restapi::mode::listmediaagents',
+        'list-schedules'        => 'apps::backup::commvault::commserve::restapi::mode::listschedules',
         'list-storage-policies' => 'apps::backup::commvault::commserve::restapi::mode::liststoragepolicies',
         'media-agents'          => 'apps::backup::commvault::commserve::restapi::mode::mediaagents',
-        'storage-pools'         => 'apps::backup::commvault::commserve::restapi::mode::storagepools'
+        'schedules'             => 'apps::backup::commvault::commserve::restapi::mode::schedules',
+        'storage-policies'      => 'apps::backup::commvault::commserve::restapi::mode::storagepolicies',
+        'storage-pools'         => 'apps::backup::commvault::commserve::restapi::mode::storagepools',
+        'subclient-status'      => 'apps::backup::commvault::commserve::restapi::mode::subclientstatus'
     };
 
     $self->{custom_modes}->{api} = 'apps::backup::commvault::commserve::restapi::custom::api';
@@ -50,10 +60,6 @@ __END__
 
 =head1 PLUGIN DESCRIPTION
 
-Check Commvault Commserve using Rest API.
-
-=over 8
-
-=back
+Check Commvault CommServe using REST API.
 
 =cut

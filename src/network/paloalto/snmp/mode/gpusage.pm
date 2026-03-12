@@ -1,5 +1,5 @@
 #
-# Copyright 2024 Centreon (http://www.centreon.com/)
+# Copyright 2026 Centreon (http://www.centreon.com/)
 #
 # Centreon is a full-fledged industry-strength solution that meets
 # the needs in IT infrastructure and application monitoring for
@@ -96,11 +96,14 @@ sub manage_selection {
 
     my ($used, $total) = ($snmp_result->{$oid_panGPGWUtilizationActiveTunnels}, $snmp_result->{$oid_panGPGWUtilizationMaxTunnels});
 
+    $total = 0 if (!defined($total));
+    $used = 0 if (!defined($used));
+
     $self->{tunnel} = {
-        free => $total - $used,
+        free => $total > 0 ? $total - $used : 0,
         used => $used,
-        prct_used => $used * 100 / $total,
-        prct_free => 100 - ($used * 100 / $total),
+        prct_used => $total > 0 ? $used * 100 / $total : 0,
+        prct_free => $total > 0 ? 100 - ($used * 100 / $total) : 0,
         total => $total
     };
 }

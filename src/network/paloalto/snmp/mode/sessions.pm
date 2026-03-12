@@ -1,5 +1,5 @@
 #
-# Copyright 2024 Centreon (http://www.centreon.com/)
+# Copyright 2026 Centreon (http://www.centreon.com/)
 #
 # Centreon is a full-fledged industry-strength solution that meets
 # the needs in IT infrastructure and application monitoring for
@@ -121,6 +121,30 @@ sub set_counters {
                     { label => 'active_icmp', value => 'panSessionActiveICMP', template => '%s', min => 0 }
                 ]
             }
+        },
+        { label => 'active-ssl-proxy', nlabel => 'sessions.active.sslproxy.count', set => {
+                key_values => [ { name => 'panSessionActiveSslProxy' } ],
+                output_template => 'active SSL proxy: %s',
+                perfdatas => [
+                    { template => '%s', min => 0 }
+                ]
+            }
+        },
+        { label => 'ssl-proxy-utilization', nlabel => 'sessions.sslproxy.utilization.percentage', display_ok => 0, set => {
+                key_values => [ { name => 'panSessionSslProxyUtilization' } ],
+                output_template => 'SSL proxy utilization: %s%%',
+                perfdatas => [
+                    { template => '%s', min => 0, max => 100, unit => '%' }
+                ]
+            }
+        },
+        { label => 'cps', nlabel => 'sessions.connections.persecond.count', set => {
+                key_values => [ { name => 'panSessionCps' } ],
+                output_template => 'CPS: %s',
+                perfdatas => [
+                    { template => '%s', min => 0 }
+                ]
+            }
         }
     ];
 
@@ -190,7 +214,9 @@ my $mapping_sessions = {
     panSessionActiveTcp           => { oid => '.1.3.6.1.4.1.25461.2.1.2.3.4' },
     panSessionActiveUdp           => { oid => '.1.3.6.1.4.1.25461.2.1.2.3.5' },
     panSessionActiveICMP          => { oid => '.1.3.6.1.4.1.25461.2.1.2.3.6' },
-    panSessionSslProxyUtilization => { oid => '.1.3.6.1.4.1.25461.2.1.2.3.8' }
+    panSessionActiveSslProxy      => { oid => '.1.3.6.1.4.1.25461.2.1.2.3.7' },
+    panSessionSslProxyUtilization => { oid => '.1.3.6.1.4.1.25461.2.1.2.3.8' },
+    panSessionCps                 => { oid => '.1.3.6.1.4.1.25461.2.1.2.3.12' }
 };
 my $mapping_vsys = {
     display                 => { oid => '.1.3.6.1.4.1.25461.2.1.2.3.9.1.2' }, # panVsysName
@@ -266,6 +292,7 @@ Filter virtual systems by name (can be a regexp).
 
 Thresholds.
 Global: 'active', 'active-prct', (%), 'active-tcp', 'active-udp', 'active-icmp',
+'active-ssl-proxy', 'ssl-proxy-utilization' (%), 'cps',
 Per vsys: 'vsys-active', 'vsys-active-prct' (%), 'vsys-active-tcp' 'vsys-active-udp' 'vsys-active-other'.
 
 =back

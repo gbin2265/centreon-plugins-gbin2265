@@ -1,5 +1,5 @@
 #
-# Copyright 2024 Centreon (http://www.centreon.com/)
+# Copyright 2026 Centreon (http://www.centreon.com/)
 #
 # Centreon is a full-fledged industry-strength solution that meets
 # the needs in IT infrastructure and application monitoring for
@@ -76,10 +76,13 @@ sub manage_selection {
 
     my $oid_managementplane = '.1.3.6.1.2.1.25.3.3.1.2.1';
     my $oid_dataplane = '.1.3.6.1.2.1.25.3.3.1.2.2';
-    my $snmp_result = $options{snmp}->get_leef(oids => [$oid_managementplane, $oid_dataplane]);
+    my $snmp_result = $options{snmp}->get_leef(
+        oids => [$oid_managementplane, $oid_dataplane],
+        nothing_quit => 1
+    );
     $self->{cpu_avg} = {
-        dataplane => $snmp_result->{$oid_dataplane},
-        managementplane => $snmp_result->{$oid_managementplane}
+        dataplane => defined($snmp_result->{$oid_dataplane}) ? $snmp_result->{$oid_dataplane} : undef,
+        managementplane => defined($snmp_result->{$oid_managementplane}) ? $snmp_result->{$oid_managementplane} : undef
     };
 }
 

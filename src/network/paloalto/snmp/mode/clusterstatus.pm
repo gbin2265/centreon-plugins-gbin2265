@@ -1,5 +1,5 @@
 #
-# Copyright 2024 Centreon (http://www.centreon.com/)
+# Copyright 2026 Centreon (http://www.centreon.com/)
 #
 # Centreon is a full-fledged industry-strength solution that meets
 # the needs in IT infrastructure and application monitoring for
@@ -28,6 +28,8 @@ use warnings;
 my $oid_panSysHAState = '.1.3.6.1.4.1.25461.2.1.2.1.11.0'; # '.0' to have the mode
 my $oid_panSysHAPeerState = '.1.3.6.1.4.1.25461.2.1.2.1.12.0';
 my $oid_panSysHAMode = '.1.3.6.1.4.1.25461.2.1.2.1.13.0';
+my $oid_panSysSerialNumber = '.1.3.6.1.4.1.25461.2.1.2.1.3.0';
+my $oid_sysName = '.1.3.6.1.2.1.1.5.0';
 
 my $thresholds = {
     peer => [
@@ -100,15 +102,19 @@ sub run {
     my ($self, %options) = @_;
     $self->{snmp} = $options{snmp};
     
-    $self->{result} = $self->{snmp}->get_leef(oids => [ $oid_panSysHAState, $oid_panSysHAPeerState, $oid_panSysHAMode ], 
+    $self->{result} = $self->{snmp}->get_leef(oids => [ $oid_panSysHAState, $oid_panSysHAPeerState, $oid_panSysHAMode, $oid_panSysSerialNumber, $oid_sysName ], 
                                               nothing_quit => 1);
     
+    my $hostname = defined($self->{result}->{$oid_sysName}) ? $self->{result}->{$oid_sysName} : 'unknown';
+    my $serial = defined($self->{result}->{$oid_panSysSerialNumber}) ? $self->{result}->{$oid_panSysSerialNumber} : 'unknown';
+
     # Check if mode cluster
     my $ha_mode = $self->{result}->{$oid_panSysHAMode};
     $self->{output}->output_add(long_msg => 'High availabily mode is ' . $ha_mode . '.');
     if ($ha_mode =~ /disabled/i) {
         $self->{output}->output_add(severity => 'OK',
-                                    short_msg => sprintf("No cluster configuration (standalone mode)."));
+                                    short_msg => sprintf("No cluster configuration (standalone mode). Device '%s' [%s].",
+                                        $hostname, $serial));
     } else {
         if ($ha_mode =~ /active-active/i) {
             $thresholds = {
@@ -124,17 +130,20 @@ sub run {
         }
         
         $self->{output}->output_add(severity => 'OK',
-                                    short_msg => sprintf("Cluster status is ok [member: %s] [peer: %s]",
+                                    short_msg => sprintf("Device '%s' [%s] - HA mode '%s' [member: %s] [peer: %s]",
+                                        $hostname,
+                                        $serial,
+                                        $ha_mode,
                                         $self->{result}->{$oid_panSysHAState},
                                         $self->{result}->{$oid_panSysHAPeerState}));
         
-        $self->{output}->output_add(long_msg => sprintf("current high-availability state is %s",
-                                                         $self->{result}->{$oid_panSysHAState}));
+        $self->{output}->output_add(long_msg => sprintf("Device '%s' [%s] high-availability state is %s",
+                                                         $hostname, $serial, $self->{result}->{$oid_panSysHAState}));
         my $exit = $self->get_severity(section => 'current', value => $self->{result}->{$oid_panSysHAState});
         if (!$self->{output}->is_status(value => $exit, compare => 'ok', litteral => 1)) {
             $self->{output}->output_add(severity => $exit,
-                                        short_msg => sprintf("current high-availability state is %s",
-                                                         $self->{result}->{$oid_panSysHAState}));
+                                        short_msg => sprintf("Device '%s' [%s] high-availability state is %s",
+                                                         $hostname, $serial, $self->{result}->{$oid_panSysHAState}));
         }
         
         $self->{output}->output_add(long_msg => sprintf("peer high-availability state is %s",

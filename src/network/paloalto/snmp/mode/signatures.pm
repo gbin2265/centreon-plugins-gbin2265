@@ -1,5 +1,5 @@
 #
-# Copyright 2024 Centreon (http://www.centreon.com/)
+# Copyright 2026 Centreon (http://www.centreon.com/)
 #
 # Centreon is a full-fledged industry-strength solution that meets
 # the needs in IT infrastructure and application monitoring for
@@ -114,17 +114,29 @@ sub check_options {
 sub get_diff_time {
     my ($self, %options) = @_;
 
-    # '29/10/2018  08:44:54'
-    return undef if ($options{time} !~ /^\s*(\d{4})\/(\d{2})\/(\d{2})\s+(\d+):(\d+):(\d+)/);
+    my ($year, $month, $day, $hour, $min, $sec);
+
+    # Handle YYYY/MM/DD HH:MM:SS format
+    if ($options{time} =~ /^\s*(\d{4})\/(\d{2})\/(\d{2})\s+(\d+):(\d+):(\d+)/) {
+        ($year, $month, $day, $hour, $min, $sec) = ($1, $2, $3, $4, $5, $6);
+    }
+    # Handle DD/MM/YYYY HH:MM:SS format
+    elsif ($options{time} =~ /^\s*(\d{2})\/(\d{2})\/(\d{4})\s+(\d+):(\d+):(\d+)/) {
+        ($day, $month, $year, $hour, $min, $sec) = ($1, $2, $3, $4, $5, $6);
+    }
+    else {
+        $self->{output}->output_add(long_msg => "Cannot parse date format: '" . $options{time} . "'", debug => 1);
+        return undef;
+    }
 
     my $tz = centreon::plugins::misc::set_timezone(name => $self->{option_results}->{timezone});
     my $dt = DateTime->new(
-        year       => $1,
-        month      => $2,
-        day        => $3,
-        hour       => $4,
-        minute     => $5,
-        second     => $6,
+        year       => $year,
+        month      => $month,
+        day        => $day,
+        hour       => $hour,
+        minute     => $min,
+        second     => $sec,
         %$tz
     );
     return (time() - $dt->epoch);

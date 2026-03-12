@@ -1,5 +1,5 @@
 #
-# Copyright 2024 Centreon (http://www.centreon.com/)
+# Copyright 2026 Centreon (http://www.centreon.com/)
 #
 # Centreon is a full-fledged industry-strength solution that meets
 # the needs in IT infrastructure and application monitoring for
@@ -32,8 +32,25 @@ sub new {
 
     $self->{version} = '1.0';
     $self->{modes} = {
-        'hardware'      => 'hardware::server::hp::oneview::restapi::mode::hardware',
-        'storage-pools' => 'hardware::server::hp::oneview::restapi::mode::storagepools'
+        'alerts'                    => 'hardware::server::hp::oneview::restapi::mode::alerts',
+        'appliance'                 => 'hardware::server::hp::oneview::restapi::mode::appliance',
+        'appliance-backup'          => 'hardware::server::hp::oneview::restapi::mode::appliancebackup',
+        'appliance-nodes'           => 'hardware::server::hp::oneview::restapi::mode::appliancenodes',
+        'appliance-tasks'           => 'hardware::server::hp::oneview::restapi::mode::appliancetasks',
+        'appliance-timesync'        => 'hardware::server::hp::oneview::restapi::mode::appliancetimesync',
+        'enclosures'                => 'hardware::server::hp::oneview::restapi::mode::enclosures',
+        'enclosure-components'      => 'hardware::server::hp::oneview::restapi::mode::enclosurecomponents',
+        'firmware-compliance'       => 'hardware::server::hp::oneview::restapi::mode::firmwarecompliance',
+        'hardware'                  => 'hardware::server::hp::oneview::restapi::mode::hardware',
+        'interconnects'             => 'hardware::server::hp::oneview::restapi::mode::interconnects',
+        'logical-enclosures'        => 'hardware::server::hp::oneview::restapi::mode::logicalenclosures',
+        'logical-interconnects'     => 'hardware::server::hp::oneview::restapi::mode::logicalinterconnects',
+        'power-devices'             => 'hardware::server::hp::oneview::restapi::mode::powerdevices',
+        'server-hardware'           => 'hardware::server::hp::oneview::restapi::mode::serverhardware',
+        'server-profiles'           => 'hardware::server::hp::oneview::restapi::mode::serverprofiles',
+        'server-profile-templates'  => 'hardware::server::hp::oneview::restapi::mode::serverprofiletemplates',
+        'storage-pools'             => 'hardware::server::hp::oneview::restapi::mode::storagepools',
+        'uplink-sets'               => 'hardware::server::hp::oneview::restapi::mode::uplinksets',
     };
 
     $self->{custom_modes}->{api} = 'hardware::server::hp::oneview::restapi::custom::api';

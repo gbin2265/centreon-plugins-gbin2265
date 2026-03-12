@@ -1,5 +1,5 @@
 #
-# Copyright 2024 Centreon (http://www.centreon.com/)
+# Copyright 2026 Centreon (http://www.centreon.com/)
 #
 # Centreon is a full-fledged industry-strength solution that meets
 # the needs in IT infrastructure and application monitoring for
@@ -99,7 +99,9 @@ sub new {
     bless $self, $class;
     
     $options{options}->add_options(arguments => { 
-        'filter-name:s'     => { name => 'filter_name' },
+        'filter-name:s'             => { name => 'filter_name' },
+        'filter-storage-system:s'   => { name => 'filter_storage_system' },
+        'filter-domain:s'           => { name => 'filter_domain' },
         'unknown-status:s'  => { name => 'unknown_status', default => '%{status} =~ /unknown/i' },
         'warning-status:s'  => { name => 'warning_status', default => '%{status} =~ /warning/i' },
         'critical-status:s' => { name => 'critical_status', default => '%{status} =~ /critical/i' },
@@ -124,13 +126,29 @@ sub prefix_pool_output {
 sub manage_selection {
     my ($self, %options) = @_;
 
-    my $results = $options{custom}->request_api(url_path => '/rest/storage-pools?start=0&count=-1');
+    my $results = $options{custom}->request_api_all(url_path => '/rest/storage-pools');
 
     $self->{pool} = {};
     foreach (@{$results->{members}}) {
         if (defined($self->{option_results}->{filter_name}) && $self->{option_results}->{filter_name} ne '' &&
             $_->{name} !~ /$self->{option_results}->{filter_name}/) {
             $self->{output}->output_add(long_msg => "skipping storage pool '" . $_->{name} . "': no matching filter.", debug => 1);
+            next;
+        }
+
+        my $storage_system = defined($_->{storageSystemUri}) ? $_->{storageSystemUri} : '';
+        $storage_system =~ s{^.*/}{};
+        if (defined($self->{option_results}->{filter_storage_system}) && $self->{option_results}->{filter_storage_system} ne '' &&
+            $storage_system !~ /$self->{option_results}->{filter_storage_system}/) {
+            $self->{output}->output_add(long_msg => "skipping storage pool '" . $_->{name} . "': storage system '$storage_system' no matching filter.", debug => 1);
+            next;
+        }
+
+        my $domain = defined($_->{storageSystemVolumeName}) ? $_->{storageSystemVolumeName}
+                   : (defined($_->{domain})                ? $_->{domain} : '');
+        if (defined($self->{option_results}->{filter_domain}) && $self->{option_results}->{filter_domain} ne '' &&
+            $domain !~ /$self->{option_results}->{filter_domain}/i) {
+            $self->{output}->output_add(long_msg => "skipping storage pool '" . $_->{name} . "': domain '$domain' no matching filter.", debug => 1);
             next;
         }
 
@@ -169,6 +187,15 @@ Example: --filter-counters='^usage$'
 =item B<--filter-name>
 
 Filter pool name (can be a regexp).
+
+=item B<--filter-storage-system>
+
+Filter storage pools by their parent storage system name (can be a regexp).
+
+=item B<--filter-domain>
+
+Filter storage pools by storage domain or CPG domain name (can be a regexp).
+Example: --filter-domain='SSD_Domain'.
 
 =item B<--unknown-status>
 

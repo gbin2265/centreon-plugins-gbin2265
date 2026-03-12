@@ -1,5 +1,5 @@
 #
-# Copyright 2024 Centreon (http://www.centreon.com/)
+# Copyright 2026 Centreon (http://www.centreon.com/)
 #
 # Centreon is a full-fledged industry-strength solution that meets
 # the needs in IT infrastructure and application monitoring for
@@ -125,11 +125,19 @@ sub settings {
 sub json_decode {
     my ($self, %options) = @_;
 
+    # Guard against empty or whitespace-only response (e.g. HTTP 204 No Content)
+    if (!defined($options{content}) || $options{content} !~ /\S/) {
+        return undef if ($options{ignore_errors});
+        $self->{output}->add_option_msg(short_msg => "Empty response received from API");
+        $self->{output}->option_exit();
+    }
+
     my $decoded;
     eval {
         $decoded = JSON::XS->new->utf8->decode($options{content});
     };
     if ($@) {
+        return undef if ($options{ignore_errors});
         $self->{output}->add_option_msg(short_msg => "Cannot decode json response: $@");
         $self->{output}->option_exit();
     }
@@ -140,6 +148,15 @@ sub json_decode {
 sub clean_session_id {
     my ($self, %options) = @_;
 
+    # Explicitly logout on the server to free the session slot
+    if (defined($self->{session_id})) {
+        $self->{http}->request(
+            method   => 'DELETE',
+            url_path => '/rest/login-sessions',
+            warning_status => '', unknown_status => '', critical_status => '',
+        );
+    }
+
     my $datas = { last_timestamp => time() };
     $self->{cache}->write(data => $datas);
     $self->{session_id} = undef;
@@ -148,13 +165,29 @@ sub clean_session_id {
 sub decode_api_response {
     my ($self, %options) = @_;
 
-    my $decoded = $self->json_decode(content => $options{content});
+    my $decoded = $self->json_decode(content => $options{content}, ignore_errors => $options{ignore_errors});
     if (!defined($decoded)) {
+        return undef if ($options{ignore_errors});
         $self->{output}->add_option_msg(short_msg => "Error while retrieving data (add --debug option for detailed message)");
         $self->{output}->option_exit();
     }
     if (defined($decoded->{errorCode})) {
-        $self->clean_session_id();
+        if ($options{ignore_errors}) {
+            $self->{output}->output_add(
+                long_msg => sprintf("api warning: [%s] %s", $decoded->{errorCode}, $decoded->{message}),
+                debug => 1
+            );
+            return undef;
+        }
+        # For session limit errors, just clear the cache without trying to DELETE
+        # (we may not have a valid session to delete)
+        if ($decoded->{errorCode} =~ /AUTHN_SESSION/) {
+            my $datas = { last_timestamp => time() };
+            $self->{cache}->write(data => $datas);
+            $self->{session_id} = undef;
+        } else {
+            $self->clean_session_id();
+        }
         $self->{output}->add_option_msg(short_msg => 'api error: ' . $decoded->{message});
         $self->{output}->option_exit();
     }
@@ -166,9 +199,13 @@ sub authenticate {
     my ($self, %options) = @_;
 
     my $has_cache_file = $self->{cache}->read(statefile => 'hp_oneview_' . md5_hex($self->{option_results}->{hostname}) . '_' . md5_hex($self->{option_results}->{api_username}));
-    my $session_id = $self->{cache}->get(name => 'session_id');
-    
-    if ($has_cache_file == 0 || !defined($session_id)) {
+    my $session_id     = $self->{cache}->get(name => 'session_id');
+    my $last_timestamp = $self->{cache}->get(name => 'last_timestamp') // 0;
+
+    # Renew session after 23h (OneView sessions expire after 24h by default)
+    my $session_expired = (time() - $last_timestamp) > (23 * 3600);
+
+    if ($has_cache_file == 0 || !defined($session_id) || $session_expired) {
         my $json_request = { userName => $self->{api_username}, password => $self->{api_password} };
         $json_request->{authLoginDomain} = $self->{api_domain} if (defined($self->{api_domain}) && $self->{api_domain} ne '');
 
@@ -240,7 +277,46 @@ sub request_api {
         );
     }
 
-    return $self->decode_api_response(content => $content);
+    return $self->decode_api_response(content => $content, ignore_errors => $options{ignore_errors});
+}
+
+
+# Fetch all members of a collection endpoint, handling HPE OneView pagination.
+# Usage: $custom->request_api_all(url_path => '/rest/interconnects')
+# Returns arrayref of all member objects.
+sub request_api_all {
+    my ($self, %options) = @_;
+
+    my $base_url = $options{url_path};
+    # Strip any existing start/count params so we control pagination
+    $base_url =~ s/[?&]start=[^&]*//g;
+    $base_url =~ s/[?&]count=[^&]*//g;
+    $base_url =~ s/\?&/\?/g;
+    $base_url =~ s/[?&]$//;
+
+    my @all_members;
+    my $start = 0;
+    my $count = 100;
+
+    while (1) {
+        my $sep  = ($base_url =~ /\?/) ? '&' : '?';
+        my $page = $self->request_api(
+            url_path => "${base_url}${sep}start=${start}&count=${count}",
+        );
+        last if (!defined($page) || !defined($page->{members}) || scalar(@{$page->{members}}) == 0);
+        push @all_members, @{$page->{members}};
+        my $total = $page->{total} // 0;
+        # Stop when we have all records according to the total field,
+        # or when the API returns an empty nextPageUri / no next page hint.
+        last if ($total > 0 && scalar(@all_members) >= $total);
+        # If total is unknown, stop only when the API returns nothing more
+        # (do NOT stop based on page size < requested count, as OneView
+        #  enforces its own internal page size regardless of count param)
+        last if ($total == 0 && scalar(@{$page->{members}}) == 0);
+        $start += scalar(@{$page->{members}});
+    }
+
+    return { members => \@all_members };
 }
 
 1;

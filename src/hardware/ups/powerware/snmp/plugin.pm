@@ -33,10 +33,14 @@ sub new {
     %{$self->{modes}} = (
         'alarms'           => 'hardware::ups::powerware::snmp::mode::alarms',
         'battery-status'   => 'hardware::ups::powerware::snmp::mode::batterystatus',
+        'battery-test'     => 'hardware::ups::powerware::snmp::mode::batterytest',
+        'bypass-lines'     => 'hardware::ups::powerware::snmp::mode::bypasslines',
         'environment'      => 'hardware::ups::powerware::snmp::mode::environment',
         'input-lines'      => 'hardware::ups::powerware::snmp::mode::inputlines',
+        'input-source'     => 'hardware::ups::powerware::snmp::mode::inputsource',
         'output-lines'     => 'hardware::ups::powerware::snmp::mode::outputlines',
         'output-source'    => 'hardware::ups::powerware::snmp::mode::outputsource',
+        'ups-info'         => 'hardware::ups::powerware::snmp::mode::upsinfo',
     );
 
     return $self;

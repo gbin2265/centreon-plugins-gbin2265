@@ -80,6 +80,14 @@ sub set_counters {
                     { template => '%s', unit => 'V' }
                 ]
             }
+        },
+        { label => 'temperature', nlabel => 'battery.temperature.celsius', display_ok => 0, set => {
+                key_values => [ { name => 'xupsBatTemperature', no_value => 0 } ],
+                output_template => 'temperature: %s C',
+                perfdatas => [
+                    { template => '%s', min => 0, unit => 'C' }
+                ]
+            }
         }
     ];
 }
@@ -116,7 +124,8 @@ my $mapping = {
     xupsBatVoltage       => { oid => '.1.3.6.1.4.1.534.1.2.2' }, # in V
     xupsBatCurrent       => { oid => '.1.3.6.1.4.1.534.1.2.3' }, # in dA
     xupsBatCapacity      => { oid => '.1.3.6.1.4.1.534.1.2.4' },
-    xupsBatteryAbmStatus => { oid => '.1.3.6.1.4.1.534.1.2.5', map => $map_battery_status }
+    xupsBatteryAbmStatus => { oid => '.1.3.6.1.4.1.534.1.2.5', map => $map_battery_status },
+    xupsBatTemperature   => { oid => '.1.3.6.1.4.1.534.1.2.7' }, # in degrees C
 };
 
 sub manage_selection {
@@ -130,9 +139,17 @@ sub manage_selection {
     my $result = $options{snmp}->map_instance(mapping => $mapping, results => $snmp_result, instance => '0');
     $result->{xupsBatCurrent} = defined($result->{xupsBatCurrent}) ? $result->{xupsBatCurrent} * 0.1 : 0;
     $result->{xupsBatTimeRemaining} = defined($result->{xupsBatTimeRemaining}) ? int($result->{xupsBatTimeRemaining} / 60) : undef;
+    $result->{xupsBatTemperature} = defined($result->{xupsBatTemperature}) && $result->{xupsBatTemperature} != 0 ? $result->{xupsBatTemperature} : 0;
     $result->{status} = $result->{xupsBatteryAbmStatus};
 
-    $self->{global} = $result;
+    $self->{global} = {
+        xupsBatCapacity      => $result->{xupsBatCapacity},
+        xupsBatTimeRemaining => $result->{xupsBatTimeRemaining},
+        xupsBatCurrent       => $result->{xupsBatCurrent},
+        xupsBatVoltage       => $result->{xupsBatVoltage},
+        xupsBatTemperature   => $result->{xupsBatTemperature},
+        status               => $result->{status},
+    };
 }
 
 1;

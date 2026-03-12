@@ -1,9 +1,5 @@
 #
-# Copyright 2024 Centreon (http://www.centreon.com/)
-#
-# Centreon is a full-fledged industry-strength solution that meets
-# the needs in IT infrastructure and application monitoring for
-# service performance.
+# Copyright 2026 Centreon (http://www.centreon.com/)
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -28,13 +24,11 @@ use centreon::plugins::templates::catalog_functions qw(catalog_status_threshold_
 
 sub custom_status_output {
     my ($self, %options) = @_;
-
     return sprintf('battery status is %s', $self->{result_values}->{status});
 }
 
 sub custom_load_output {
     my ($self, %options) = @_;
-
     return sprintf(
         'charge remaining: %s%% (%s minutes remaining)',
         $self->{result_values}->{charge_remain},
@@ -79,6 +73,14 @@ sub set_counters {
                 ]
             }
         },
+        { label => 'seconds-on-battery', nlabel => 'battery.seconds.on.battery.seconds', display_ok => 0, set => {
+                key_values => [ { name => 'seconds_on_battery', no_value => 0 } ],
+                output_template => 'seconds on battery: %s s',
+                perfdatas => [
+                    { template => '%s', min => 0, unit => 's' }
+                ]
+            }
+        },
         { label => 'current', nlabel => 'battery.current.ampere', display_ok => 0, set => {
                 key_values => [ { name => 'current', no_value => 0 } ],
                 output_template => 'current: %s A',
@@ -110,6 +112,14 @@ sub set_counters {
                     { template => '%s', unit => 'C' }
                 ]
             }
+        },
+        { label => 'capacity-nominal', nlabel => 'battery.capacity.nominal.ah', display_ok => 0, set => {
+                key_values => [ { name => 'capacity_nominal', no_value => 0 } ],
+                output_template => 'nominal capacity: %s Ah',
+                perfdatas => [
+                    { template => '%s', min => 0, unit => 'Ah' }
+                ]
+            }
         }
     ];
 }
@@ -118,10 +128,7 @@ sub new {
     my ($class, %options) = @_;
     my $self = $class->SUPER::new(package => __PACKAGE__, %options, force_new_perfdata => 1);
     bless $self, $class;
-
-    $options{options}->add_options(arguments => {
-    });
-
+    $options{options}->add_options(arguments => {});
     return $self;
 }
 
@@ -138,21 +145,24 @@ my $map_status_v5 = {
 
 my $mapping = {
     netvision5 => {
-        status               => { oid => '.1.3.6.1.4.1.4555.1.1.1.1.2.1', map => $map_status_v5 }, # upsBatteryStatus
-        minute_remain        => { oid => '.1.3.6.1.4.1.4555.1.1.1.1.2.3' }, # upsEstimatedMinutesRemaining
-        charge_remain        => { oid => '.1.3.6.1.4.1.4555.1.1.1.1.2.4' }, # upsEstimatedChargeRemaining
-        voltage              => { oid => '.1.3.6.1.4.1.4555.1.1.1.1.2.5' }, # upsBatteryVoltage (dV)
-        temperature          => { oid => '.1.3.6.1.4.1.4555.1.1.1.1.2.7' }, # upsBatteryTemperature (degrees Centigrade)
-        temperatureambient   => { oid => '.1.3.6.1.4.1.4555.1.1.1.1.2.6' }  # upsAmbientTemperature (degrees Centigrade)
+        status             => { oid => '.1.3.6.1.4.1.4555.1.1.1.1.2.1', map => $map_status_v5 }, # upsBatteryStatus
+        seconds_on_battery => { oid => '.1.3.6.1.4.1.4555.1.1.1.1.2.2' }, # upsBatterySecondsOnBattery
+        minute_remain      => { oid => '.1.3.6.1.4.1.4555.1.1.1.1.2.3' }, # upsEstimatedMinutesRemaining
+        charge_remain      => { oid => '.1.3.6.1.4.1.4555.1.1.1.1.2.4' }, # upsEstimatedChargeRemaining
+        voltage            => { oid => '.1.3.6.1.4.1.4555.1.1.1.1.2.5' }, # upsBatteryVoltage (dV)
+        temperature        => { oid => '.1.3.6.1.4.1.4555.1.1.1.1.2.7' }, # upsBatteryTemperature
+        temperatureambient => { oid => '.1.3.6.1.4.1.4555.1.1.1.1.2.6' }  # upsAmbientTemperature
     },
     netvision6 => {
-        status               => { oid => '.1.3.6.1.4.1.4555.1.1.7.1.2.1', map => $map_status_v6 }, # upsBatteryStatus
-        minute_remain        => { oid => '.1.3.6.1.4.1.4555.1.1.7.1.2.3' }, # upsEstimatedMinutesRemaining
-        charge_remain        => { oid => '.1.3.6.1.4.1.4555.1.1.7.1.2.4' }, # upsEstimatedChargeRemaining
-        voltage              => { oid => '.1.3.6.1.4.1.4555.1.1.7.1.2.5' }, # upsBatteryVoltage (dV)
-        temperature          => { oid => '.1.3.6.1.4.1.4555.1.1.7.1.2.6' }, # upsBatteryTemperature (degrees Centigrade)
-        temperatureambient   => { oid => '.1.3.6.1.4.1.4555.1.1.7.1.2.7' }, # upsAmbientTemperature (degrees Centigrade)
-        current              => { oid => '.1.3.6.1.4.1.4555.1.1.7.1.2.8' }  # upsBatteryCurrent (dA)
+        status             => { oid => '.1.3.6.1.4.1.4555.1.1.7.1.2.1', map => $map_status_v6 }, # upsBatteryStatus
+        seconds_on_battery => { oid => '.1.3.6.1.4.1.4555.1.1.7.1.2.2' }, # upsBatterySecondsOnBattery
+        minute_remain      => { oid => '.1.3.6.1.4.1.4555.1.1.7.1.2.3' }, # upsEstimatedMinutesRemaining
+        charge_remain      => { oid => '.1.3.6.1.4.1.4555.1.1.7.1.2.4' }, # upsEstimatedChargeRemaining
+        voltage            => { oid => '.1.3.6.1.4.1.4555.1.1.7.1.2.5' }, # upsBatteryVoltage (dV)
+        temperature        => { oid => '.1.3.6.1.4.1.4555.1.1.7.1.2.6' }, # upsBatteryTemperature
+        temperatureambient => { oid => '.1.3.6.1.4.1.4555.1.1.7.1.2.7' }, # upsAmbientTemperature
+        current            => { oid => '.1.3.6.1.4.1.4555.1.1.7.1.2.8' }, # upsBatteryCurrent (dA)
+        capacity_nominal   => { oid => '.1.3.6.1.4.1.4555.1.1.7.1.2.9' }  # upsBatteryNominalCapacity (Ah)
     }
 };
 
@@ -180,6 +190,10 @@ sub manage_selection {
     $self->{global}->{temperatureambient} = (defined($self->{global}->{temperatureambient}) && $self->{global}->{temperatureambient} =~ /\d/) ? $self->{global}->{temperatureambient} * 0.1 : 0;
     $self->{global}->{minute_remain} = (defined($self->{global}->{minute_remain}) && $self->{global}->{minute_remain} =~ /\d/ && $self->{global}->{minute_remain} != -1) ? $self->{global}->{minute_remain} : 'unknown';
     $self->{global}->{charge_remain} = (defined($self->{global}->{charge_remain}) && $self->{global}->{charge_remain} =~ /\d/) ? $self->{global}->{charge_remain} : undef;
+    $self->{global}->{seconds_on_battery} = (defined($self->{global}->{seconds_on_battery}) && $self->{global}->{seconds_on_battery} =~ /\d/ && $self->{global}->{seconds_on_battery} != -1) ?
+        $self->{global}->{seconds_on_battery} : 0;
+    $self->{global}->{capacity_nominal} = (defined($self->{global}->{capacity_nominal}) && $self->{global}->{capacity_nominal} =~ /\d/ && $self->{global}->{capacity_nominal} > 0) ?
+        $self->{global}->{capacity_nominal} : 0;
 }
 
 1;
@@ -211,7 +225,8 @@ You can use the following variables: %{status}
 
 Thresholds.
 Can be: 'charge-remaining' (%), 'charge-remaining-minutes',
-'current' (A), 'voltage' (V), 'temperature' (C), 'temperatureambient' (C).
+'seconds-on-battery' (s), 'current' (A), 'voltage' (V),
+'temperature' (C), 'temperatureambient' (C), 'capacity-nominal' (Ah).
 
 =back
 

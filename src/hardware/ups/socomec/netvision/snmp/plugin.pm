@@ -1,9 +1,5 @@
 #
-# Copyright 2024 Centreon (http://www.centreon.com/)
-#
-# Centreon is a full-fledged industry-strength solution that meets
-# the needs in IT infrastructure and application monitoring for
-# service performance.
+# Copyright 2026 Centreon (http://www.centreon.com/)
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -30,10 +26,12 @@ sub new {
     bless $self, $class;
 
     $self->{modes} = {
-        'alarms'        => 'hardware::ups::socomec::netvision::snmp::mode::alarms',
-        'battery'       => 'hardware::ups::socomec::netvision::snmp::mode::battery',
-        'input-lines'   => 'hardware::ups::socomec::netvision::snmp::mode::inputlines',
-        'output-lines'  => 'hardware::ups::socomec::netvision::snmp::mode::outputlines'
+        'alarms'       => 'hardware::ups::socomec::netvision::snmp::mode::alarms',
+        'battery'      => 'hardware::ups::socomec::netvision::snmp::mode::battery',
+        'bypass'       => 'hardware::ups::socomec::netvision::snmp::mode::bypass',
+        'identity'     => 'hardware::ups::socomec::netvision::snmp::mode::identity',
+        'input-lines'  => 'hardware::ups::socomec::netvision::snmp::mode::inputlines',
+        'output-lines' => 'hardware::ups::socomec::netvision::snmp::mode::outputlines'
     };
 
     return $self;
